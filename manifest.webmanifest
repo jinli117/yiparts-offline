@@ -1,0 +1,16 @@
+{
+  "name": "宜配离线查询",
+  "short_name": "宜配查询",
+  "description": "OE号离线查产品编码/价格/名称/重量/包装，纯本地、无需联网",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d47a1",
+  "theme_color": "#0d47a1",
+  "lang": "zh-CN",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

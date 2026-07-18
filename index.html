@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d47a1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="宜配查询">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<title>宜配离线查询</title>
+<style>
+  :root{
+    --bg:#0d47a1; --bg2:#1565c0; --card:#ffffff; --ink:#0f1b2d; --sub:#5b6b7f;
+    --line:#e3e8ef; --ok:#0b8a3e; --warn:#c77700; --bad:#c62828; --accent:#1976d2;
+    --shadow:0 2px 12px rgba(13,31,45,.08);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:#f2f5f9; color:var(--ink);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  header{
+    background:linear-gradient(135deg,var(--bg),var(--bg2));
+    color:#fff; padding:calc(14px + env(safe-area-inset-top)) 16px 14px;
+    position:sticky; top:0; z-index:10; box-shadow:0 2px 10px rgba(0,0,0,.15);
+  }
+  header h1{margin:0;font-size:18px;font-weight:700;letter-spacing:.5px;display:flex;align-items:center;gap:8px}
+  header .meta{margin-top:4px;font-size:12px;opacity:.85}
+  .wrap{max-width:640px;margin:0 auto;padding:14px}
+  .searchbar{position:sticky;top:0;z-index:5}
+  .inputrow{display:flex;gap:8px;margin-bottom:10px}
+  textarea, input[type=text]{
+    width:100%; border:1.5px solid var(--line); border-radius:12px;
+    padding:14px; font-size:17px; background:#fff; color:var(--ink);
+    outline:none; transition:border-color .15s; resize:vertical;
+  }
+  textarea:focus,input:focus{border-color:var(--accent)}
+  textarea{min-height:52px; line-height:1.5}
+  .btn{
+    border:none; border-radius:12px; padding:0 20px; font-size:16px; font-weight:600;
+    background:var(--accent); color:#fff; min-height:52px; white-space:nowrap;
+    box-shadow:var(--shadow); cursor:pointer;
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:#fff;color:var(--accent);border:1.5px solid var(--line)}
+  .hint{font-size:12px;color:var(--sub);margin:2px 2px 12px}
+  .summary{font-size:13px;color:var(--sub);margin:2px 2px 10px;display:none}
+  .summary b{color:var(--ink)}
+  .card{
+    background:var(--card); border-radius:14px; padding:14px; margin-bottom:12px;
+    box-shadow:var(--shadow); border:1px solid #eef2f7;
+  }
+  .card .oe{font-size:12px;color:var(--sub);margin-bottom:6px;word-break:break-all}
+  .card .code{font-size:22px;font-weight:800;color:var(--accent);letter-spacing:.5px;word-break:break-all}
+  .card .name{font-size:16px;margin:6px 0 10px;color:var(--ink)}
+  .kv{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .kv .item{background:#f6f9fc;border-radius:10px;padding:8px 10px}
+  .kv .item .k{font-size:11px;color:var(--sub)}
+  .kv .item .v{font-size:16px;font-weight:700;margin-top:2px}
+  .price .v{color:var(--bad)}
+  .tag{display:inline-block;font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px;margin-left:6px;vertical-align:middle}
+  .tag.warn{background:#fff3e0;color:var(--warn)}
+  .tag.bad{background:#ffebee;color:var(--bad)}
+  .card.miss{border-left:4px solid var(--bad)}
+  .card.miss .code{color:var(--bad);font-size:16px}
+  .card.multi{border-left:4px solid var(--warn)}
+  .copy{float:right;font-size:12px;color:var(--accent);border:1px solid var(--line);border-radius:8px;padding:4px 10px;background:#fff}
+  .fz{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--sub);margin:0 2px 10px;cursor:pointer}
+  .fz input{width:17px;height:17px}
+  .tag.fuzzy{background:#e3f2fd;color:var(--accent)}
+  .loading{position:fixed;inset:0;background:#0d47a1;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99;gap:14px}
+  .loading .ring{width:44px;height:44px;border:4px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading .t{font-size:15px} .loading .s{font-size:12px;opacity:.8}
+  .install{display:none;background:#e8f2ff;border:1px solid #bcdcff;color:#0d47a1;border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:13px;line-height:1.5}
+  .install b{cursor:pointer;text-decoration:underline}
+  .empty{text-align:center;color:var(--sub);padding:40px 10px;font-size:14px;line-height:1.7}
+  footer{text-align:center;color:#9aa7b5;font-size:11px;padding:16px}
+  .gate{position:fixed;inset:0;background:linear-gradient(135deg,#0d47a1,#1565c0);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;padding:24px;gap:16px}
+  .gate h2{margin:0;font-size:21px;font-weight:700}
+  .gate .sub{font-size:12px;opacity:.78}
+  .gate .box{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.28);border-radius:16px;padding:22px;width:100%;max-width:340px;display:flex;flex-direction:column;gap:12px}
+  .gate label{font-size:13px;opacity:.92}
+  .gate input{font-size:18px;padding:14px;border-radius:12px;border:none;outline:none;width:100%}
+  .gate .btn{background:#fff;color:#0d47a1}
+  .gate .err{color:#ffd2d2;font-size:13px;min-height:16px}
+  .gate .rem{font-size:13px;opacity:.9;display:flex;align-items:center;gap:8px;justify-content:center}
+  .gate .rem input{width:18px;height:18px}
+  .logout{margin-left:auto;font-size:12px;font-weight:600;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:4px 12px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="gate" id="gate">
+  <h2>🔒 宜配查询 · 私人访问</h2>
+  <div class="box">
+    <label for="pw">请输入访问密码</label>
+    <input id="pw" type="password" placeholder="密码" autocomplete="off">
+    <button class="btn" id="pwok">进入</button>
+    <label class="rem"><input type="checkbox" id="rem" checked> 记住密码（本机自动登录）</label>
+    <div class="err" id="pwerr"></div>
+  </div>
+  <div class="sub">数据已在本地加密，密码不会上传</div>
+</div>
+<div class="loading" id="loading">
+  <div class="ring"></div>
+  <div class="t">正在载入本地数据库…</div>
+  <div class="s" id="loadsub">首次约需几秒，之后离线秒开</div>
+</div>
+
+<header>
+  <h1>🔧 宜配离线查询 <button class="logout" id="logout" type="button">退出</button></h1>
+  <div class="meta" id="dbmeta">数据加载中…</div>
+</header>
+
+<div class="wrap">
+  <div class="install" id="install">
+    📱 把它装成 App：<span id="installtip">点右上角浏览器菜单 →「添加到主屏幕」，即可离线使用</span>
+    <b id="installbtn" style="display:none">立即安装</b>
+  </div>
+
+  <div class="searchbar">
+    <div class="inputrow">
+      <textarea id="q" rows="1" placeholder="输入 OE 号 或 产品编码，支持多行批量粘贴" autocomplete="off" autocapitalize="off" enterkeyhint="search"></textarea>
+    </div>
+    <div class="inputrow">
+      <button class="btn" id="go" style="flex:1">查询</button>
+      <button class="btn ghost" id="clr">清空</button>
+    </div>
+    <div class="hint">支持 OE 号 与 产品编码 双向查询；忽略大小写、空格、横杠、星号(*)。多行则批量查询。</div>
+    <label class="fz"><input type="checkbox" id="fz" checked> 模糊匹配（忽略左右件 L / R 后缀；如 XG-90187 可查 L/R，输入纯数字 90187 也能搜出相关型号）</label>
+    <div class="summary" id="summary"></div>
+  </div>
+
+  <div id="results">
+    <div class="empty" id="empty">
+      输入上方 OE 号 或 产品编码 开始查询<br>
+      <span style="font-size:12px">OE 例：8-94459-480-1 &nbsp;/&nbsp; 22868912 &nbsp;&nbsp;产品编码 例：XG-90029L</span>
+    </div>
+  </div>
+</div>
+
+<footer>纯本地查询 · 不联网 · 数据版本 <span id="ver">-</span></footer>
+
+<script>
+/* ============ 引擎（完整复刻 offline_query.resolve） ============ */
+let DB = null;
+
+function _norm(s){
+  s = String(s==null?'':s).replace(/\*/g,'').replace(/,/g,'');
+  return s.replace(/[\s\-]/g,'').toUpperCase();
+}
+function fuzzyKeys(q){
+  const n = _norm(q);
+  const out = new Set([n]);
+  if(/[0-9]$/.test(n)){ out.add(n+'L'); out.add(n+'R'); }   // 末尾补 L/R
+  if(/[A-Z]$/.test(n)){ out.add(n.slice(0,-1)); }        // 末尾去一个字母（如 XG90187L -> XG90187）
+  return [...out];
+}
+// 产品编码后缀匹配：输入纯数字/片段（如 90187）也能搜出 XG-90187L / XG-90187R 等相关型号。
+// 规则：取编码去掉末尾 L/R 后的 base，只要 base 或原编码 以查询串结尾即命中。
+function codeSuffixHits(q, fuzzy){
+  if(!fuzzy || !DB) return [];
+  const n = _norm(q);
+  if(!n) return [];
+  const nBase = /[LR]$/.test(n) ? n.slice(0,-1) : n;
+  const rows = DB.rows, out = [], seen = new Set();
+  for(let i=0;i<rows.length;i++){
+    const code = _norm(rows[i][0]);
+    if(!code) continue;
+    const base = /[LR]$/.test(code) ? code.slice(0,-1) : code;
+    if(base.endsWith(n) || base.endsWith(nBase) || code.endsWith(n)){
+      if(!seen.has(i)){
+        seen.add(i);
+        out.push({row: rows[i], note:'模糊匹配:'+rows[i][0], status:'hit', by:'code'});
+      }
+    }
+  }
+  return out;
+}
+function resolveAll(q, fuzzy){
+  if(!DB) return [{status:'nodb'}];
+  const rows = DB.rows, prod = DB.prod;
+  const idxOf = (sv)=>{ let i = prod[sv]; if(i===undefined) i = prod[_norm(sv)]; return (i===undefined?null:i); };
+  const qRaw = String(q).trim();
+  const base = _norm(q);
+  const keys = fuzzy ? fuzzyKeys(q) : [base];
+  const hits = [];
+  const seen = new Set();      // 防止同一产品重复展示
+  let oeDelisted = false;
+  for(const key of keys){
+    // 1) OE 路径
+    const cands = DB.map[key];
+    if(cands){
+      const valid = (sv)=>{ const i = idxOf(sv); return i!==null && rows[i][5]===0; };
+      const vc = cands.filter(c=>valid(c[0]));
+      if(vc.length>0){
+        const exact = vc.filter(c=>String(c[1]).trim()===qRaw).map(c=>c[0]);
+        const pool = exact.length ? exact : vc.map(c=>c[0]);
+        const distinct = [...new Set(pool)];
+        for(const code of distinct){
+          const i = idxOf(code);
+          if(i===null || seen.has(i)) continue;
+          seen.add(i);
+          const note = (key!==base) ? ('模糊匹配:'+code) : null;
+          hits.push({row: rows[i], note, status:'hit', by:'oe'});
+        }
+        continue;             // 该 key 已找到在售命中，跳过后续
+      }
+      // OE 命中但候选全退市
+      oeDelisted = true;
+      const iD = idxOf(qRaw);
+      if(iD!==null && !seen.has(iD)){ seen.add(iD); hits.push({row: rows[iD], note:null, status:'hit', by:'code'}); }
+    }
+    // 2) 产品编码直查（含模糊补/去 L/R）—— 兜底也收集所有变体
+    const i = idxOf(key);
+    if(i!==null && !seen.has(i)){
+      seen.add(i);
+      const note = (key!==base) ? ('模糊匹配:'+rows[i][0]) : null;
+      hits.push({row: rows[i], note, status:'hit', by:'code'});
+    }
+  }
+  if(hits.length) return hits;
+  // 常规键查询无命中，且开启模糊：尝试产品编码后缀匹配（如 90187 -> XG-90187L/R）
+  const suffix = codeSuffixHits(q, fuzzy);
+  if(suffix.length) return hits.concat(suffix);
+  if(oeDelisted) return [{status:'delisted'}];
+  return [{status:'miss'}];
+}
+
+/* ============ UI ============ */
+const $ = (id)=>document.getElementById(id);
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+function cardHit(q, r, note, by){
+  const [code, price, name, weight, pack, delisted] = r;
+  const multi = note && note.startsWith('多匹配');
+  const fuzzy = note && note.startsWith('模糊匹配');
+  const label = by==='code' ? '产品编码' : 'OE';
+  const stat = delisted ? '<span style="color:var(--bad)">已退市</span>' : '<span style="color:var(--ok)">在售</span>';
+  const tag = (multi?'<span class="tag warn">多匹配</span>':'')
+            + (fuzzy?'<span class="tag fuzzy">模糊</span>':'')
+            + (delisted?'<span class="tag bad">已退市</span>':'');
+  return `<div class="card ${multi?'multi':''}">
+    <button class="copy" data-copy="${esc(code)}">复制编码</button>
+    <div class="oe">${label}：${esc(q)}</div>
+    <div class="code">${esc(code)}${tag}</div>
+    <div class="name">${esc(name||'—')}</div>
+    <div class="kv">
+      <div class="item price"><div class="k">销售定价</div><div class="v">${price?('¥'+esc(price)):'—'}</div></div>
+      <div class="item"><div class="k">重量(KG)</div><div class="v">${esc(weight||'—')}</div></div>
+      <div class="item"><div class="k">包装参考</div><div class="v">${esc(pack||'—')}</div></div>
+      <div class="item"><div class="k">状态</div><div class="v">${stat}</div></div>
+    </div>
+    ${multi?`<div class="hint" style="margin-top:8px">⚠ 该 OE 对应多个自编号：${esc(note.slice(4))}，已默认取第一个。</div>`:''}
+  </div>`;
+}
+function cardMiss(oe, status){
+  const txt = status==='delisted' ? '候选产品均已退市' : '未匹配到产品';
+  const tag = status==='delisted' ? '<span class="tag bad">已退市</span>' : '<span class="tag bad">未匹配</span>';
+  return `<div class="card miss">
+    <div class="oe">OE：${esc(oe)}</div>
+    <div class="code">${esc(oe)} ${tag}</div>
+    <div class="name" style="color:var(--sub)">${txt}</div>
+  </div>`;
+}
+
+function doSearch(){
+  const raw = $('q').value;
+  const lines = raw.split(/[\n\r]+/).map(s=>s.trim()).filter(Boolean);
+  const res = $('results');
+  if(lines.length===0){ res.innerHTML = $('empty').outerHTML; $('summary').style.display='none'; return; }
+  let hit=0, miss=0, delist=0, html='';
+  const fuzzy = $('fz').checked;
+  for(const oe of lines){
+    const results = resolveAll(oe, fuzzy);
+    for(const r of results){
+      if(r.status==='hit'){ hit++; html += cardHit(oe, r.row, r.note, r.by); }
+      else if(r.status==='delisted'){ delist++; html += cardMiss(oe, 'delisted'); }
+      else { miss++; html += cardMiss(oe, 'miss'); }
+    }
+  }
+  res.innerHTML = html;
+  const sm = $('summary');
+  sm.style.display='block';
+  sm.innerHTML = `共 <b>${lines.length}</b> 条：命中 <b style="color:var(--ok)">${hit}</b>`
+    + (miss?` · 未匹配 <b style="color:var(--bad)">${miss}</b>`:'')
+    + (delist?` · 已退市 <b style="color:var(--bad)">${delist}</b>`:'');
+  // 绑定复制
+  res.querySelectorAll('.copy').forEach(b=>b.onclick=()=>{
+    const t=b.getAttribute('data-copy');
+    (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject())
+      .then(()=>{b.textContent='已复制';setTimeout(()=>b.textContent='复制编码',1200);})
+      .catch(()=>{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');b.textContent='已复制';setTimeout(()=>b.textContent='复制编码',1200);}catch(e){}document.body.removeChild(ta);});
+  });
+}
+
+$('go').onclick = doSearch;
+$('clr').onclick = ()=>{ $('q').value=''; $('q').focus(); $('results').innerHTML=$('empty').outerHTML; $('summary').style.display='none'; };
+$('q').addEventListener('keydown', e=>{
+  if(e.key==='Enter' && !e.shiftKey && !$('q').value.includes('\n')){ e.preventDefault(); doSearch(); }
+});
+// 自适应高度
+$('q').addEventListener('input', function(){ this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,180)+'px'; });
+
+/* ============ 密码门 + 解密数据库 ============ */
+const gate = $('gate'), pwInput = $('pw'), pwok = $('pwok');
+function showGateErr(m){ $('pwerr').textContent = m; }
+function b64dec(s){ return Uint8Array.from(atob(s), c=>c.charCodeAt(0)); }
+async function decryptDB(pw){
+  const meta = await (await fetch('./db.json')).json();
+  if(!meta.enc) return meta;                       // 兼容未加密的旧版
+  const salt = b64dec(meta.salt), iv = b64dec(meta.iv), ct = b64dec(meta.ct);
+  const baseKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
+  const aesKey = await crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt, iterations:meta.iter, hash:'SHA-256' },
+    baseKey, { name:'AES-GCM', length:256 }, false, ['decrypt']);
+  const buf = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, aesKey, ct);
+  return JSON.parse(new TextDecoder().decode(buf));
+}
+const REM_KEY = 'yiparts_pw';
+async function doUnlock(pw, remember){
+  $('loading').style.display='flex';
+  $('loadsub').textContent='正在解密本地数据库…';
+  try{
+    const db = await decryptDB(pw);
+    DB = db;
+    if(remember) localStorage.setItem(REM_KEY, pw); else localStorage.removeItem(REM_KEY);
+    $('dbmeta').textContent = `产品 ${db.n_prod} 条 · OE ${db.n_map} 键 · 版本 ${db.v}`;
+    $('ver').textContent = db.v;
+    $('loading').style.display='none';
+    gate.style.display='none';
+    $('q').focus();
+  }catch(e){
+    $('loading').style.display='none';
+    localStorage.removeItem(REM_KEY);
+    gate.style.display='flex';
+    showGateErr('密码错误或数据损坏，请重试');
+    pwInput.value=''; pwInput.focus();
+  }
+}
+async function unlock(){
+  const pw = pwInput.value;
+  if(!pw){ showGateErr('请输入密码'); return; }
+  await doUnlock(pw, $('rem').checked);
+}
+pwok.onclick = unlock;
+pwInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); unlock(); } });
+// 退出：清记忆并显示门
+$('logout').onclick = ()=>{
+  localStorage.removeItem(REM_KEY);
+  DB=null;
+  gate.style.display='flex';
+  pwInput.value=''; $('pwerr').textContent='';
+  pwInput.focus();
+};
+// 自动登录：本机有记忆则直接解密，不弹门
+(function autoLogin(){
+  const saved = localStorage.getItem(REM_KEY);
+  if(!saved) return;
+  gate.style.display='none';
+  doUnlock(saved, true);
+})();
+
+/* ============ PWA 安装 ============ */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',(e)=>{
+  e.preventDefault(); deferredPrompt=e;
+  $('install').style.display='block';
+  $('installtip').style.display='none';
+  const b=$('installbtn'); b.style.display='inline';
+  b.onclick=async()=>{ b.style.display='none'; deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt=null; $('install').style.display='none'; };
+});
+// iOS 无 beforeinstallprompt，提示手动添加
+const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+if(isiOS && !standalone){
+  $('install').style.display='block';
+  $('installtip').textContent='点底部「分享」按钮 → 「添加到主屏幕」，即可离线使用';
+}
+</script>
+</body>
+</html>
