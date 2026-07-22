@@ -236,7 +236,7 @@ const $ = (id)=>document.getElementById(id);
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
 function cardHit(q, r, note, by){
-  const [code, price, name, weight, pack, delisted] = r;
+  const [code, price, name, weight, pack, delisted, remark] = r;
   const multi = note && note.startsWith('多匹配');
   const fuzzy = note && note.startsWith('模糊匹配');
   const label = by==='code' ? '产品编码' : 'OE';
@@ -249,6 +249,7 @@ function cardHit(q, r, note, by){
     <div class="oe">${label}：${esc(q)}</div>
     <div class="code">${esc(code)}${tag}</div>
     <div class="name">${esc(name||'—')}</div>
+    ${remark?`<div class="hint" style="margin-top:4px">📝 备注：${esc(remark)}</div>`:''}
     <div class="kv">
       <div class="item price"><div class="k">销售定价</div><div class="v">${price?('¥'+esc(price)):'—'}</div></div>
       <div class="item"><div class="k">重量(KG)</div><div class="v">${esc(weight||'—')}</div></div>
