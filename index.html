@@ -52,7 +52,7 @@
   .summary b{color:var(--ink)}
   .card{
     background:var(--card); border-radius:14px; padding:14px; margin-bottom:12px;
-    box-shadow:var(--shadow); border:1px solid #eef2f7;
+    box-shadow:var(--shadow); border:1px solid #eef2f7; cursor:pointer;
   }
   .card .oe{font-size:12px;color:var(--sub);margin-bottom:6px;word-break:break-all}
   .card .code{font-size:22px;font-weight:800;color:var(--accent);letter-spacing:.5px;word-break:break-all}
@@ -68,7 +68,17 @@
   .card.miss{border-left:4px solid var(--bad)}
   .card.miss .code{color:var(--bad);font-size:16px}
   .card.multi{border-left:4px solid var(--warn)}
-  .copy{float:right;font-size:12px;color:var(--accent);border:1px solid var(--line);border-radius:8px;padding:4px 10px;background:#fff}
+  .copy{float:right;font-size:12px;color:var(--accent);border:1px solid var(--line);border-radius:8px;padding:4px 10px;background:#fff;cursor:pointer}
+  .more{font-size:12px;color:var(--accent);text-align:center;margin-top:8px;padding:5px;background:#f0f6ff;border-radius:8px;cursor:pointer;user-select:none}
+  .detail{display:none;margin-top:10px;border-top:1px dashed var(--line);padding-top:10px}
+  .card.open .detail{display:block}
+  .kv3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px}
+  .kv3 .item{background:#f6f9fc;border-radius:8px;padding:6px 8px}
+  .kv3 .item .k{font-size:11px;color:var(--sub)}
+  .kv3 .item .v{font-size:14px;font-weight:700;margin-top:1px;word-break:break-all}
+  .drefs{margin-top:8px}
+  .drefs .lab{font-size:12px;color:var(--sub);margin-bottom:4px}
+  .chip{display:inline-block;font-size:12px;background:#eef3fb;border:1px solid var(--line);border-radius:20px;padding:4px 10px;margin:3px 3px 0 0;color:#1a3a6b;cursor:pointer}
   .fz{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--sub);margin:0 2px 10px;cursor:pointer}
   .fz input{width:17px;height:17px}
   .tag.fuzzy{background:#e3f2fd;color:var(--accent)}
@@ -235,8 +245,19 @@ function resolveAll(q, fuzzy){
 const $ = (id)=>document.getElementById(id);
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
+function refsOf(code){
+  // 反查该自编号挂载的全部对照号（OE / 品牌交叉号），按出现顺序去重
+  const out = [], seen = new Set();
+  for(const k in DB.map){
+    for(const pr of DB.map[k]){
+      if(pr[0] === code && !seen.has(pr[1])){ seen.add(pr[1]); out.push(pr[1]); }
+    }
+  }
+  return out;
+}
 function cardHit(q, r, note, by){
-  const [code, price, name, weight, pack, delisted, remark] = r;
+  const [code, price, name, weight, pack, delisted, remark,
+         mainNo, mat, proc, ball, bush, withBall, created, enName] = r;
   const multi = note && note.startsWith('多匹配');
   const fuzzy = note && note.startsWith('模糊匹配');
   const label = by==='code' ? '产品编码' : 'OE';
@@ -244,7 +265,13 @@ function cardHit(q, r, note, by){
   const tag = (multi?'<span class="tag warn">多匹配</span>':'')
             + (fuzzy?'<span class="tag fuzzy">模糊</span>':'')
             + (delisted?'<span class="tag bad">已退市</span>':'');
-  return `<div class="card ${multi?'multi':''}">
+  // 详细字段（行第 8 列起，旧数据可能缺省）
+  const ext = [ ['主号码',mainNo], ['英文名称',enName], ['材质',mat],
+                ['壳体工艺',proc], ['球头数',ball], ['衬套数',bush],
+                ['是否带球头',withBall], ['创建日期',created] ]
+              .filter(x=>x[1]);
+  const extHtml = ext.length ? ext.map(x=>`<div class="item"><div class="k">${x[0]}</div><div class="v">${esc(x[1])}</div></div>`).join('') : '';
+  return `<div class="card ${multi?'multi':''}" data-code="${esc(code)}">
     <button class="copy" data-copy="${esc(code)}">复制编码</button>
     <div class="oe">${label}：${esc(q)}</div>
     <div class="code">${esc(code)}${tag}</div>
@@ -257,6 +284,11 @@ function cardHit(q, r, note, by){
       <div class="item"><div class="k">状态</div><div class="v">${stat}</div></div>
     </div>
     ${multi?`<div class="hint" style="margin-top:8px">⚠ 该 OE 对应多个自编号：${esc(note.slice(4))}，已默认取第一个。</div>`:''}
+    <div class="more">▼ 点击查看详细数据与对照号</div>
+    <div class="detail">
+      <div class="kv3">${extHtml}</div>
+      <div class="drefs"><div class="lab">对照号 / 交叉号（点击复制）</div><div class="refbox">加载中…</div></div>
+    </div>
   </div>`;
 }
 function cardMiss(oe, status){
@@ -290,14 +322,34 @@ function doSearch(){
   sm.innerHTML = `共 <b>${lines.length}</b> 条：命中 <b style="color:var(--ok)">${hit}</b>`
     + (miss?` · 未匹配 <b style="color:var(--bad)">${miss}</b>`:'')
     + (delist?` · 已退市 <b style="color:var(--bad)">${delist}</b>`:'');
-  // 绑定复制
-  res.querySelectorAll('.copy').forEach(b=>b.onclick=()=>{
-    const t=b.getAttribute('data-copy');
-    (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject())
-      .then(()=>{b.textContent='已复制';setTimeout(()=>b.textContent='复制编码',1200);})
-      .catch(()=>{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');b.textContent='已复制';setTimeout(()=>b.textContent='复制编码',1200);}catch(e){}document.body.removeChild(ta);});
-  });
 }
+/* 复制到剪贴板（统一处理按钮与 chip） */
+function copyText(t, btn){
+  (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject())
+    .then(()=>{btn.textContent='已复制';setTimeout(()=>btn.textContent=(btn.classList.contains('chip')?t:'复制编码'),1200);})
+    .catch(()=>{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');btn.textContent='已复制';setTimeout(()=>btn.textContent=(btn.classList.contains('chip')?t:'复制编码'),1200);}catch(e){}document.body.removeChild(ta);});
+}
+/* 事件委托：复制按钮 / 对照号 chip / 卡片点开展开详情 */
+$('results').addEventListener('click', (ev)=>{
+  const t = ev.target;
+  const cp = t.closest('[data-copy]');
+  if(cp){ copyText(cp.getAttribute('data-copy'), cp); return; }
+  const card = t.closest('.card');
+  if(!card || card.classList.contains('miss')) return;
+  const willOpen = !card.classList.contains('open');
+  card.classList.toggle('open');
+  if(willOpen){
+    const box = card.querySelector('.refbox');
+    if(box && !box.dataset.done){
+      box.dataset.done='1';
+      const code = card.getAttribute('data-code');
+      const refs = refsOf(code);
+      box.innerHTML = refs.length
+        ? refs.map(x=>`<span class="chip" data-copy="${esc(x)}">${esc(x)}</span>`).join('')
+        : '<span style="color:var(--sub)">无对照号</span>';
+    }
+  }
+});
 
 $('go').onclick = doSearch;
 $('clr').onclick = ()=>{ $('q').value=''; $('q').focus(); $('results').innerHTML=$('empty').outerHTML; $('summary').style.display='none'; };

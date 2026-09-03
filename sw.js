@@ -4,7 +4,7 @@
    现在 SW 更新只预缓存几十 KB 小文件，几乎必然成功；
    db.json 在版本切换（旧缓存被删除）后由首次访问自动联网获取并缓存，
    之后离线秒开。数据推送时记得同步递增 CACHE 版本号。 */
-const CACHE = 'yiparts-offline-v13';
+const CACHE = 'yiparts-offline-v14';
 const ASSETS = [
   './',
   './index.html',
