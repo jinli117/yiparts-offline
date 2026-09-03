@@ -368,7 +368,17 @@ $('logout').onclick = ()=>{
 
 /* ============ PWA 安装 ============ */
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  // 检测到新版 SW 安装并激活后自动刷新一次，确保用户总是看到最新数据
+  navigator.serviceWorker.register('./sw.js').then((reg)=>{
+    reg.addEventListener('updatefound',()=>{
+      const nw=reg.installing;
+      if(nw) nw.addEventListener('statechange',()=>{
+        if(nw.state==='activated' && navigator.serviceWorker.controller){
+          location.reload();
+        }
+      });
+    });
+  }).catch(()=>{});
 }
 let deferredPrompt=null;
 window.addEventListener('beforeinstallprompt',(e)=>{
