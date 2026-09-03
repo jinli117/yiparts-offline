@@ -1,5 +1,5 @@
 /* 宜配离线查询 Service Worker —— 缓存优先，装一次永久离线可用 */
-const CACHE = 'yiparts-offline-v8';
+const CACHE = 'yiparts-offline-v9';
 const ASSETS = [
   './',
   './index.html',
